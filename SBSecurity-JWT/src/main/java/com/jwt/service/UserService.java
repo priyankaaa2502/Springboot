@@ -1,5 +1,7 @@
 package com.jwt.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,10 @@ public class UserService {
 	public Users createUser(Users user) {
 		user.setPassword(encoder.encode(user.getPassword()));
 		return userRepository.save(user);
+	}
+	
+	public List<Users> getAll(){
+		return userRepository.findAll();
 	}
 
 }

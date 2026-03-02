@@ -19,60 +19,61 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-	@Autowired
-	private JwtService jwtService;
+    @Autowired
+    private JwtService jwtService;
 
-	@Autowired
-	private UserDetailsService userDetailsService;
+    @Autowired
+    private UserDetailsService userDetailsService;
 
-	@Override
-	protected void doFilterInternal(HttpServletRequest request,
-			HttpServletResponse response,
-			FilterChain filterChain)
-					throws ServletException, IOException {
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+                                    throws ServletException, IOException {
 
-		final String authHeader = request.getHeader("Authorization");
-		String username=null;
-		String jwt =null;
+        final String authHeader = request.getHeader("Authorization");
 
-		// 1️⃣ If no Authorization header or not Bearer
-		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-			// 2️⃣ Extract token
-			jwt = authHeader.substring(7);
-			// 3️⃣ Extract username from token
-			username = jwtService.extractUsername(jwt);
-			filterChain.doFilter(request, response);
-		}
+        String username = null;
+        String jwt = null;
 
+        // ✅ If header is missing OR not Bearer → just continue
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;   // 🔥 VERY IMPORTANT
+        }
 
+        // ✅ Extract token
+        jwt = authHeader.substring(7);
 
-		// 4️⃣ Validate only if not already authenticated
-		if (username != null) {
+        // ✅ Extract username
+        username = jwtService.extractUsername(jwt);
 
-			UserDetails userDetails =
-					userDetailsService.loadUserByUsername(username);
+        // ✅ Validate only if not already authenticated
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-			// 5️⃣ Validate token properly
-			if (jwtService.isTokenValid(jwt, userDetails)) {
+            UserDetails userDetails =
+                    userDetailsService.loadUserByUsername(username);
 
-				UsernamePasswordAuthenticationToken authToken =
-						new UsernamePasswordAuthenticationToken(
-								userDetails,
-								null,
-								userDetails.getAuthorities()
-								);
+            if (jwtService.isTokenValid(jwt, userDetails)) {
 
-				authToken.setDetails(
-						new WebAuthenticationDetailsSource()
-						.buildDetails(request)
-						);
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
 
-				// 6️⃣ Set authentication in context
-				SecurityContextHolder.getContext()
-				.setAuthentication(authToken);
-			}
-		}
+                authToken.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(request)
+                );
 
-		filterChain.doFilter(request, response);
-	}
+                SecurityContextHolder.getContext()
+                        .setAuthentication(authToken);
+            }
+        }
+
+        // ✅ Continue filter chain
+        filterChain.doFilter(request, response);
+    }
 }
